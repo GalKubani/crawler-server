@@ -1,7 +1,7 @@
 const cheerio=require('cheerio')
 const Axios=require('axios')
 const {Worker}=require('worker_threads')
-const Page= require('../models/pageModel')
+const redisClient=require('../db/redis')
 
 let pageCounter=0
 let depthCounter=0
@@ -9,6 +9,7 @@ let linksInDepth=[]
 let newLinks=[]
 
 const scrapeUrl=async (url,maxDepth,maxPages)=>{
+    console.log("scraping"- url, maxDepth,maxPages)
     try{
         if(!url.includes("https://")) { url="https://"+url }
         let page={}
@@ -47,8 +48,10 @@ const scrapeLevel=async(maxPages)=>{
         }
         if(res.status===200){
             page=scrapePage(res.data,linksInDepth[i-1])
-            scarpedPages.push(page)
-            pageCounter++;
+            if(page){
+                scarpedPages.push(page)
+                pageCounter++;
+            } 
         }
     }
     depthCounter++
@@ -62,22 +65,27 @@ const scrapePage=(pageData,url)=>{
         const link= $(el).attr('href')
         if(link?.includes(`https://`)){
             pageLinks.push(link)
-        }
-        
+        }    
     })
-    const pageUrl=`https://`+url;
+    const pageUrl=url;
     const pageTitle=$('title').text()
     page={
         pageTitle,
-        pageDepth=depthCounter,
+        pageDepth:depthCounter,
         pageUrl,
         pageLinks
     }
     newLinks=[...newLinks,...pageLinks]
-    const pageObj= new Page(page)
-    pageObj.save()
-
-
+    try{    
+        redisClient.setexAsync(
+            "Scraped page: "+pageTitle,
+            300,
+            JSON.stringify(page)
+        )
+    }catch(err){
+        console.log(err)
+        return undefined
+    }
     return page
 }
 module.exports=scrapeUrl

@@ -2,10 +2,9 @@ const express= require('express');
 const scrapeUrl = require('../utils/scrapeJob');
 const router= new express.Router();
 
-router.get('/start-scarping',auth,async(req,res)=>{
+router.get('/start-scarping',async(req,res)=>{
     try{
-        const result= await scrapeUrl(req.url,req.maxDepth,req.maxPages)
-        console.log(result)
+        const result= await scrapeUrl(req.body.url,req.body.maxDepth,req.body.maxPages)
         return result
     }catch(err){
         console.log(err)
