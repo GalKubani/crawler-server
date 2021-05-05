@@ -11,7 +11,7 @@ const createQueue=async(req,res,next)=>{
         const data= await sqs.createQueue({
             QueueName
         }).promise();
-        req.queueUrl=data.QueueUrl+"";
+        req.queueUrl=data.QueueUrl;
         next()
     }catch(err){
         console.log(err)
@@ -33,7 +33,6 @@ const sendMessageToQueue= async(req,res,next)=>{
     }
 }
 const sendLinksToQueue= (links,QueueUrl)=>{
-    console.log(QueueUrl)
     try{
         links.map((link)=>{
             let MessageBody=link
@@ -77,13 +76,9 @@ const pullMessagesFromQueue= async(req,res,next)=>{
         console.log(err)
     }
 }
-const deleteQueue = async(req,res,next)=>{
-    next()
-    const QueueUrl=req.body.queueUrl
-
+const deleteQueue = async (QueueUrl)=>{
     try{
         await sqs.deleteQueue({QueueUrl}).promise()
-        
     }catch(err){    
         console.log(err)
     }

@@ -36,6 +36,10 @@ const scrapeUrl=async (url,maxDepth,maxPages,queueUrl)=>{
 const scrapeLevel=async(maxPages,queueUrl)=>{
 
     for(let i=1;i<=linksInDepth.length && pageCounter<=maxPages ;i++){
+        // nn to make this work with several workers
+        // the axios request should be without await
+        // the page count must wait for the result so it wont send
+        // more workers than needed, to make sure request stops on max
         await Axios.post(workerURL,{queueUrl,depthCounter})
             .then((result)=>{
                 page=result?.data

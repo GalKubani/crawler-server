@@ -4,9 +4,10 @@ const scrapeUrl = require('../utils/scrapeJob');
 const router= new express.Router();
 
 
-router.post('/start-scarping',createQueue,sendMessageToQueue,deleteQueue,async(req,res)=>{
+router.post('/start-scarping',createQueue,sendMessageToQueue,async(req,res)=>{
     try{
         const result= await scrapeUrl(req.body.url,req.body.maxDepth,req.body.maxPages,req.queueUrl)
+        deleteQueue(req.queueUrl)
         res.send(result)
     }catch(err){
         console.log(err)
