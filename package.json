@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "^2.900.0",
     "axios": "^0.21.1",
     "bluebird": "^3.7.2",
     "cheerio": "^1.0.0-rc.6",
