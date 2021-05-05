@@ -1,6 +1,5 @@
 const Axios=require('axios')
-const { sendMessageToQueue, sendLinksToQueue } = require('../middleware/sqs')
-const {scrapePage} = require('../../../crawler-worker/utils/scrapePage')
+const { sendLinksToQueue } = require('../middleware/sqs')
 
 let pageCounter=0
 let depthCounter=0
@@ -14,11 +13,8 @@ const scrapeUrl=async (url,maxDepth,maxPages,queueUrl)=>{
     let page={}
     try{
         if(!url.includes("https://")) { url="https://"+url } 
-        await Axios.post(workerURL,{queueUrl,depthCounter})
-            .then((result)=>{
-                page=result.data
-        })
-        console.log(page)
+        const res=await Axios.post(workerURL,{queueUrl,depthCounter})
+        page=res.data
         linksInDepth=[...page.pageLinks]
         sendLinksToQueue(linksInDepth,queueUrl)
         pageCounter++
@@ -28,6 +24,8 @@ const scrapeUrl=async (url,maxDepth,maxPages,queueUrl)=>{
 
             await scrapeLevel(maxPages,queueUrl)
             linksInDepth=[...newLinks]
+            console.log("sending next depth to sqs")
+            sendLinksToQueue(linksInDepth,queueUrl)
         }
         return page
     }catch(err){
@@ -47,6 +45,7 @@ const scrapeLevel=async(maxPages,queueUrl)=>{
             newLinks=[...newLinks,...page.pageLinks]
         } 
     }
+    console.log("finished current depth")
     depthCounter++
 }
 

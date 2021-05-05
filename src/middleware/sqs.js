@@ -11,7 +11,7 @@ const createQueue=async(req,res,next)=>{
         const data= await sqs.createQueue({
             QueueName
         }).promise();
-        req.queueUrl=data.QueueUrl;
+        req.queueUrl=data.QueueUrl+"";
         next()
     }catch(err){
         console.log(err)
@@ -49,7 +49,7 @@ const sendLinksToQueue= (links,QueueUrl)=>{
 }
 
 const pullMessagesFromQueue= async(req,res,next)=>{
-    const QueueUrl= req.query.queueUrl
+    const QueueUrl= req.queueUrl
     try{
         const {Messages}=await sqs.receiveMessage({
             QueueUrl,
