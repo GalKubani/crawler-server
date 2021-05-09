@@ -6,6 +6,7 @@ const sqs=new AWS.SQS({
 })
 
 const createQueue=async(req,res,next)=>{
+
     const QueueName=req.body.QueueName
     try{
         const data= await sqs.createQueue({
@@ -19,6 +20,7 @@ const createQueue=async(req,res,next)=>{
 }
 
 const sendMessageToQueue= async(req,res,next)=>{
+    console.log(req.body)
     const QueueUrl= req.queueUrl
     const MessageBody=req.body.messageBody
     try{
