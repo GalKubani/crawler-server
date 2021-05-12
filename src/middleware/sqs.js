@@ -20,7 +20,6 @@ const createQueue=async(req,res,next)=>{
 }
 
 const sendMessageToQueue= async(req,res,next)=>{
-    console.log(req.body)
     const QueueUrl= req.queueUrl
     const MessageBody=req.body.messageBody
     try{
