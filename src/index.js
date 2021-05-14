@@ -3,7 +3,8 @@ const cors= require('cors')
 const port= process.env.PORT
 
 const app= express()
-const pageRouter=require('./src/routers/pageRouter')
+require('./db/mongoose')
+const pageRouter=require('./routers/pageRouter')
 app.use(cors())
 app.use(express.json())
 app.use(pageRouter)

@@ -21,19 +21,7 @@ const getPagesFromRedis = async(req,res)=> {
     }
 };
 
-const checkTreeOnDB= async(req,res,next)=>{
-    try{
-        let tree= await redisClient.getAsync("Scraped tree - https://"+req.body.url)
-        // will nn to add check if tree is as long as requested
-        if(tree){
-            return res.send(JSON.parse(tree))
-        }
-        next()
-    }catch(err){
-        console.log(err)
-    }
-}
 
 module.exports = {
-    getPagesFromRedis,checkTreeOnDB
+    getPagesFromRedis
 };
