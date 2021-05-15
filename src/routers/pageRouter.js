@@ -8,8 +8,8 @@ const router= new express.Router();
 
 router.post('/start-scarping',checkTreeOnDB,createQueue,sendMessageToQueue,async(req,res)=>{
     try{
-        const result= await scrapeUrl(req.body.url,req.body.maxDepth,req.body.maxPages,req.queueUrl,req.body.QueueName,req.body.tree||undefined)
-        res.send(result)
+        await scrapeUrl(req.body.url,req.body.maxDepth,req.body.maxPages,req.queueUrl,req.body.QueueName,req.body.tree||undefined)
+        res.send("Scraping")
     }catch(err){
         console.log(err)
     }

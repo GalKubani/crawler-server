@@ -1,5 +1,6 @@
 const Axios=require('axios')
 const { sendLinksToQueue, deleteQueue } = require('../middleware/sqs')
+const Tree= require('../models/treeModel')
 
 let pageCounter=0,depthCounter=0
 let newLinks=[],linksInDepth=[]
@@ -25,10 +26,11 @@ const scrapeUrl=async (url,maxDepth,maxPages,queueUrl,QueueName,currentTree)=>{
             tree=res.data
         }
         if(maxDepth===0){return tree}
-        // will nn to update page count incase of existing tree
-        // will also nn to check where scraping continues from
         for(let i=0;i<tree.treeChildren.length;i++){
             linksInDepth.push(tree.treeChildren[i].link)
+        }
+        if(linksInDepth.length>requestedPages-pageCounter){ 
+            linksInDepth=linksInDepth.splice(0,requestedPages-pageCounter)
         }
         sendLinksToQueue(linksInDepth,queueUrl)
         pageCounter++
@@ -73,7 +75,6 @@ const workerDone=async (req, res) =>{
             }
         }
     }   
-
     console.log("active workers remaining- "+(workersSent-workersDone))
     if(linksInDepth.length===0 && workersDone===workersSent){checkAndAssignWorkers(req.body.treeId) }
     else if(workersDone===workersSent){
@@ -82,16 +83,25 @@ const workerDone=async (req, res) =>{
     }
     res.send("ok")
 }
-const checkAndAssignWorkers=(treeId)=>{
+const resetServer=()=>{
+    pageCounter=0,depthCounter=0
+    newLinks=[],linksInDepth=[]
+    workersSent=0,workersDone=0
+}
+const checkAndAssignWorkers=async (treeId)=>{
     depthCounter++
     if(pageCounter>=requestedPages|| depthCounter>requestedDepth){
         try{
+            await Tree.findByIdAndUpdate({_id:treeId}, {totalPagesScraped:pageCounter-1}, {
+                new: true,
+                runValidators: true,
+            });
             console.log("deleting queue")
             deleteQueue(currentQueueUrl)
+            resetServer()
         }catch(err){ console.log(err)}
     }
     linksInDepth=[...newLinks]
-
     if(linksInDepth.length>requestedPages-pageCounter){ linksInDepth=linksInDepth.splice(0,requestedPages-pageCounter),currentQueueUrl}
     sendLinksToQueue(linksInDepth,currentQueueUrl)
     workersDone=0

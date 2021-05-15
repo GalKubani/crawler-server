@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const treeSchema = new mongoose.Schema({
     pageUrl: {
-        type: Object,
-        default: {}
+        type: String,
+        required: true
     },
     pageTitle: {
         type: String,
@@ -15,7 +15,7 @@ const treeSchema = new mongoose.Schema({
     },
     treeChildren: [{
         link:{type:String,required:true},
-        children:[]
+        node:{type:Object, default: {}}
     }]
 });
 
