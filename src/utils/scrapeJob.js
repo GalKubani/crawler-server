@@ -2,8 +2,8 @@ const Axios=require('axios')
 const { sendLinksToQueue, deleteQueue } = require('../middleware/sqs')
 const Tree= require('../models/treeModel')
 
-let pageCounter=0,depthCounter=0
-let newLinks=[],linksInDepth=[]
+let pageCounter=0,depthCounter=0,totalLinksSentToQueue=0
+let newLinks=[],linksInDepth=[], linksSentToQueue=[]
 let workersSent=0,workersDone=0
 let requestedDepth=0,requestedPages=0
 let currentQueueUrl,currentQueueName
@@ -29,11 +29,8 @@ const scrapeUrl=async (url,maxDepth,maxPages,queueUrl,QueueName,currentTree)=>{
         for(let i=0;i<tree.treeChildren.length;i++){
             linksInDepth.push(tree.treeChildren[i].link)
         }
-        if(linksInDepth.length>requestedPages-pageCounter){ 
-            linksInDepth=linksInDepth.splice(0,requestedPages-pageCounter)
-        }
-        sendLinksToQueue(linksInDepth,queueUrl)
         pageCounter++
+        sendLinksToSqs()
         depthCounter++
         newLinks=[]
         console.log("links in depth- "+linksInDepth.length+ " current depth - "+ depthCounter)
@@ -46,9 +43,9 @@ const scrapeUrl=async (url,maxDepth,maxPages,queueUrl,QueueName,currentTree)=>{
 
 const scrapeLevel=async(maxPages,queueUrl,QueueName,totalLinks,depthCounter,treeId)=>{
     let workerScrapeIndex=maxPages-pageCounter<totalLinks?maxPages-pageCounter:totalLinks
-    console.log("total links to scrape in depth- "+workerScrapeIndex)
     workersSent=Math.floor(workerScrapeIndex/5)+1
-    for(let i=0;i<=workersSent;i++){
+    console.log("sending a total of "+workersSent+" workers")
+    for(let i=0;i<workersSent;i++){
         Axios.post(workerURL,{queueUrl,depthCounter,QueueName,treeId})
     }
 }
@@ -57,6 +54,8 @@ const workerDone=async (req, res) =>{
     let pagesScraped=req.body.pagesScraped
     for(let j=0;j<pagesScraped.length;j++){
         let validPage=false
+        totalLinksSentToQueue--
+        console.log("links remaining in depth" +linksInDepth.length)
         pagesScraped[j]?.pageTitle?validPage=true:"";
         for(let i=0;i<linksInDepth.length;i++){
             if(!validPage){
@@ -76,35 +75,54 @@ const workerDone=async (req, res) =>{
         }
     }   
     console.log("active workers remaining- "+(workersSent-workersDone))
-    if(linksInDepth.length===0 && workersDone===workersSent){checkAndAssignWorkers(req.body.treeId) }
+
+    console.log("links sent to queue remaining-" + totalLinksSentToQueue)
+    if(totalLinksSentToQueue <= 0 && workersDone===workersSent){
+        if(linksInDepth.length===0){
+            console.log("entering next depth-" +depthCounter)
+            depthCounter++
+        }
+        checkAndAssignWorkers(req.body.treeId) 
+    }
     else if(workersDone===workersSent){
         workersDone=0
         scrapeLevel(requestedPages,currentQueueUrl,currentQueueName,linksInDepth.length,depthCounter,req.body.treeId)
     }
     res.send("ok")
 }
-const resetServer=()=>{
-    pageCounter=0,depthCounter=0
-    newLinks=[],linksInDepth=[]
-    workersSent=0,workersDone=0
-}
+
 const checkAndAssignWorkers=async (treeId)=>{
-    depthCounter++
+
     if(pageCounter>=requestedPages|| depthCounter>requestedDepth){
         try{
-            await Tree.findByIdAndUpdate({_id:treeId}, {totalPagesScraped:pageCounter-1}, {
+            await Tree.findByIdAndUpdate({_id:treeId}, {totalPagesScraped:pageCounter}, {
                 new: true,
                 runValidators: true,
             });
             console.log("deleting queue")
             deleteQueue(currentQueueUrl)
             resetServer()
+            return
         }catch(err){ console.log(err)}
     }
-    linksInDepth=[...newLinks]
-    if(linksInDepth.length>requestedPages-pageCounter){ linksInDepth=linksInDepth.splice(0,requestedPages-pageCounter),currentQueueUrl}
-    sendLinksToQueue(linksInDepth,currentQueueUrl)
     workersDone=0
+    linksInDepth=[...newLinks]
+    sendLinksToSqs()
     scrapeLevel(requestedPages,currentQueueUrl,currentQueueName,linksInDepth.length,depthCounter,treeId)
+}
+const sendLinksToSqs=()=>{
+    totalLinksSentToQueue=linksInDepth.length
+    if(linksInDepth.length>requestedPages-pageCounter){ 
+        linksSentToQueue=linksInDepth.splice(0,requestedPages-pageCounter)
+        totalLinksSentToQueue=linksSentToQueue.length
+        sendLinksToQueue(linksSentToQueue,currentQueueUrl)
+    }
+    else{ sendLinksToQueue(linksInDepth,currentQueueUrl) }
+}
+
+const resetServer=()=>{
+    pageCounter=0,depthCounter=0
+    newLinks=[],linksInDepth=[]
+    workersSent=0,workersDone=0
 }
 module.exports={workerDone,scrapeUrl}

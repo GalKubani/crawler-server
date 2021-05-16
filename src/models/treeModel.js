@@ -13,6 +13,10 @@ const treeSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    isTreeComplete:{
+        type: Boolean,
+        default:false
+    },
     treeChildren: [{
         link:{type:String,required:true},
         node:{type:Object, default: {}}
