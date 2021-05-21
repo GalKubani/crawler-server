@@ -1,26 +1,66 @@
 const redisClient = require('../db/redis');
+const Node = require('../models/nodeModel');
+const Tree = require('../models/treeModel');
 
+let allNodes = []
+let redisKeys = []
+let currentDepth = 0, totalPagesFetched = 0
 
-
-const getPagesFromRedis = async(req,res)=> {
+const getPagesFromRedis = async (req, res) => {
     try {
-        let keys=await redisClient.keysAsync("Scraped page from Queue: "+req.query.key+"*")
-        let pages=[]
-        for (let key of keys){
-            let page= await redisClient.getAsync(key)
-            if(page){
-                pages.push(JSON.parse(page))
+        let tree = await Tree.findById(req.query.treeId)
+        if (!tree) {
+            throw new Error("no tree found")
+        }
+        redisKeys.push([])
+        for (let node of tree.treeChildren) {
+            if (!node) { continue }
+            redisKeys[currentDepth].push("Scraped page - " + node.link)
+            totalPagesFetched++
+            allNodes.push(node.node)
+        }
+        currentDepth++
+        let nodesInDepth = [...allNodes]
+        while (tree.totalPagesScraped > totalPagesFetched) {
+            redisKeys.push([])
+            nodesInDepth = await scanNodesInDepth(nodesInDepth, tree.totalPagesScraped)
+            currentDepth++
+            allNodes = [...allNodes, ...nodesInDepth]
+        }
+        let pages = []
+        for (let i = 0; i < currentDepth; i++) {
+            pages.push([])
+            for (let key of redisKeys[i]) {
+                let page = await redisClient.getAsync(key)
+                if (page) { pages[i].push(JSON.parse(page)) }
             }
         }
-        if (pages) {
-            res.send(pages);
-        }
+        if (pages) { res.send(pages); }
         else res.send([])
-    } catch (err) {
-        console.log(err);
-    }
+    } catch (err) { console.log(err); }
 };
-
+const scanNodesInDepth = async (nodes, totalPagesScraped) => {
+    let nextDepthNodes = []
+    let treeDone = false
+    for (let node of nodes) {
+        if (!node) { continue }
+        let currentNode = await Node.findById(node)
+        if (currentNode) {
+            for (let child of currentNode.nodeChildren) {
+                if (allNodes.includes(child.node)) { continue }
+                redisKeys[currentDepth].push("Scraped page - " + child.link)
+                totalPagesFetched++
+                nextDepthNodes.push(child.node)
+                if (totalPagesScraped === totalPagesFetched) {
+                    treeDone = true
+                    break
+                }
+            }
+        }
+        if (treeDone) { break }
+    }
+    return nextDepthNodes
+}
 
 module.exports = {
     getPagesFromRedis

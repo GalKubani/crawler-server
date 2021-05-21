@@ -1,90 +1,91 @@
-const AWS= require('aws-sdk')
+const AWS = require('aws-sdk')
 
-const sqs=new AWS.SQS({
+const sqs = new AWS.SQS({
     apiVersion: "2012-11-05",
     region: process.env.AWS_REGION
 })
 
-const createQueue=async(req,res,next)=>{
+const createQueue = async (req, res, next) => {
 
-    const QueueName=req.body.QueueName
-    try{
-        const data= await sqs.createQueue({
+    const QueueName = req.body.QueueName
+    try {
+        const data = await sqs.createQueue({
             QueueName
         }).promise();
-        req.queueUrl=data.QueueUrl;
+        req.queueUrl = data.QueueUrl;
         next()
-    }catch(err){
+    } catch (err) {
         console.log(err)
     }
 }
 
-const sendMessageToQueue= async(req,res,next)=>{
-    const QueueUrl= req.queueUrl
-    const MessageBody=req.body.messageBody
-    try{
-        const {MessageId}= await sqs.sendMessage({
+const sendMessageToQueue = async (req, res, next) => {
+    const QueueUrl = req.queueUrl
+    const MessageBody = req.body.messageBody
+    try {
+        const { MessageId } = await sqs.sendMessage({
             QueueUrl,
             MessageBody
         }).promise();
-        req.messageId= MessageId
+        req.messageId = MessageId
         next()
-    }catch(err){
+    } catch (err) {
         console.log(err)
     }
 }
-const sendLinksToQueue= (links,QueueUrl)=>{
-    try{
-        links.map((link)=>{
-            let MessageBody=link
+const sendLinksToQueue = (links, QueueUrl) => {
+    try {
+        links.map((link) => {
+            let MessageBody = link
             sqs.sendMessage({
                 QueueUrl,
                 MessageBody
             }).promise();
         })
+
         return links.length
-    }catch(err){
+    } catch (err) {
         console.log(err)
     }
 }
 
-const pullMessagesFromQueue= async(req,res,next)=>{
-    const QueueUrl= req.queueUrl
-    try{
-        const {Messages}=await sqs.receiveMessage({
+const pullMessagesFromQueue = async (req, res, next) => {
+    const QueueUrl = req.queueUrl
+    try {
+        const { Messages } = await sqs.receiveMessage({
             QueueUrl,
             MaxNumberOfMessages: 10,
-            MessageAttributeNames:[
+            MessageAttributeNames: [
                 "All"
             ],
-            VisibilityTimeout:30,
-            WaitTimeSeconds:5
+            VisibilityTimeout: 30,
+            WaitTimeSeconds: 5
         }).promise()
-        req.messages=Messages || [];
+        req.messages = Messages || [];
         next()
 
-        if(Messages){
-            const messagesDeleteFunc=Messages.map(message=>{
+        if (Messages) {
+            const messagesDeleteFunc = Messages.map(message => {
                 return sqs.deleteMessage({
                     QueueUrl,
                     ReceiptHandle: message.ReceiptHandle
                 }).promise()
             })
             Promise.allSettled(messagesDeleteFunc)
-            .then(data=>console.log(data))
+                .then(data => console.log(data))
         }
-    }catch(err){
+    } catch (err) {
         console.log(err)
     }
 }
-const deleteQueue = async (QueueUrl)=>{
-    try{
-        await sqs.deleteQueue({QueueUrl}).promise()
-    }catch(err){    
+const deleteQueue = async (QueueUrl) => {
+    try {
+        await sqs.deleteQueue({ QueueUrl }).promise()
+    } catch (err) {
         console.log(err)
     }
 }
-module.exports={
+module.exports = {
     createQueue,
     sendMessageToQueue,
     pullMessagesFromQueue,
