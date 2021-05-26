@@ -32,14 +32,20 @@ const getPagesFromRedis = async (req, res) => {
             pages.push([])
             for (let key of redisKeys[i]) {
                 let page = await redisClient.getAsync(key)
+
                 if (page) { pages[i].push(JSON.parse(page)) }
             }
         }
+        allNodes = []
+        redisKeys = []
+        currentDepth = 0
+        totalPagesFetched = 0
         if (pages) { res.send(pages); }
         else res.send([])
     } catch (err) { console.log(err); }
 };
 const scanNodesInDepth = async (nodes, totalPagesScraped) => {
+
     let nextDepthNodes = []
     let treeDone = false
     for (let node of nodes) {

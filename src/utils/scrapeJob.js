@@ -18,7 +18,6 @@ const scrapeUrl = async (url, maxDepth, maxPages, queueUrl, QueueName, currentTr
     currentQueueName = QueueName
     let tree = currentTree || {}
     try {
-
         if (!url.includes("https://")) { url = "https://" + url }
         if (!currentTree) {
             const res = await Axios.post(workerURL, { queueUrl, depthCounter, QueueName })
@@ -26,9 +25,7 @@ const scrapeUrl = async (url, maxDepth, maxPages, queueUrl, QueueName, currentTr
             tree = res.data
         }
         if (maxDepth === 0) { return tree }
-        for (let i = 0; i < tree.treeChildren.length; i++) {
-            linksInDepth.push(tree.treeChildren[i].link)
-        }
+        for (let i = 0; i < tree.treeChildren.length; i++) { linksInDepth.push(tree.treeChildren[i].link) }
         pageCounter++
         sendLinksToSqs()
         depthCounter++
@@ -52,13 +49,11 @@ const scrapeLevel = async (maxPages, queueUrl, QueueName, totalLinks, depthCount
 const workerDone = async (req, res) => {
     workersDone++
     let pagesScraped = req.body.pagesScraped
-    if (linksInDepth.length === 1) {
-        console.log(pagesScraped)
-    }
+
     for (let j = 0; j < pagesScraped.length; j++) {
         let validPage = false
         totalLinksSentToQueue--
-        pagesScraped[j]?.pageTitle ? validPage = true : "";
+        pagesScraped[j]?.pageUrl ? validPage = true : "";
         for (let i = 0; i < linksInDepth.length; i++) {
             if (!validPage) {
                 if (linksInDepth[i] === pagesScraped[j] + "") {
@@ -83,6 +78,7 @@ const workerDone = async (req, res) => {
     console.log("active workers remaining- " + (workersSent - workersDone))
     console.log("total pages scraped- " + pageCounter)
     console.log("links sent to queue remaining-" + totalLinksSentToQueue)
+    console.log("total links in current depth- " + linksInDepth.length)
     if (totalLinksSentToQueue <= 0 && workersDone === workersSent) {
         if (linksInDepth.length === 0) {
             console.log("entering next depth- " + depthCounter)
@@ -92,7 +88,6 @@ const workerDone = async (req, res) => {
         checkAndAssignWorkers(req.body.treeId)
     }
     else if (workersDone === workersSent) {
-
         workersDone = 0
         scrapeLevel(requestedPages, currentQueueUrl, currentQueueName, linksInDepth.length, depthCounter, req.body.treeId)
     }
@@ -100,10 +95,8 @@ const workerDone = async (req, res) => {
 }
 
 const checkAndAssignWorkers = async (treeId) => {
-
     if (pageCounter >= requestedPages || depthCounter > requestedDepth) {
         try {
-
             console.log("deleting queue")
             deleteQueue(currentQueueUrl)
             resetServer()
@@ -122,9 +115,7 @@ const sendLinksToSqs = () => {
         linksInDepth = [...linksInDepth, ...linksSentToQueue]
         sendLinksToQueue(linksSentToQueue, currentQueueUrl)
     }
-    else {
-        sendLinksToQueue(linksInDepth, currentQueueUrl)
-    }
+    else { sendLinksToQueue(linksInDepth, currentQueueUrl) }
 }
 
 const resetServer = () => {
