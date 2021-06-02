@@ -8,7 +8,7 @@ let workersSent = 0, workersDone = 0
 let requestedDepth = 0, requestedPages = 0
 let currentQueueUrl, currentQueueName
 
-let workerURL = `http://localhost:3040/start-scarping-page`
+let workerURL = `http://ec2-34-245-213-250.eu-west-1.compute.amazonaws.com/start-scarping-page`
 
 const scrapeUrl = async (url, maxDepth, maxPages, queueUrl, QueueName, currentTree) => {
     console.log("scraping- " + url, maxDepth, maxPages)
